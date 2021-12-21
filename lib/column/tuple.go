@@ -70,7 +70,19 @@ func (tuple *Tuple) ReadTuple(decoder *binary.Decoder, rows int) ([]interface{},
 }
 
 func (tuple *Tuple) Write(encoder *binary.Encoder, v interface{}) (err error) {
-	return fmt.Errorf("unsupported Tuple(T) type [%T]", v)
+	switch value := v.(type) {
+	case []string:
+		for _, item := range value {
+			err := encoder.String(item)
+			if err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("unsupported Tuple(T) type [%T]", v)
+	}
+
+	return nil
 }
 
 func parseTuple(name, chType string, timezone *time.Location) (Column, error) {
