@@ -102,14 +102,6 @@ func (block *Block) Read(serverInfo *ServerInfo, decoder *binary.Decoder) (err e
 }
 
 func (block *Block) writeArray(col column.Column, value Value, num, level int) error {
-	if level > col.Depth() {
-		arrColumn, ok := col.(*column.Array)
-		if ok && strings.Contains(col.CHType(), "Nullable") {
-			return arrColumn.WriteNull(block.buffers[num].Offset, block.buffers[num].Column, value.Interface())
-		}
-		return col.Write(block.buffers[num].Column, value.Interface())
-	}
-
 	switch {
 	case value.Kind() == reflect.Slice:
 		if len(block.offsets[num]) < level {
@@ -120,15 +112,30 @@ func (block *Block) writeArray(col column.Column, value Value, num, level int) e
 				block.offsets[num][level-1][len(block.offsets[num][level-1])-1]+value.Len(),
 			)
 		}
-		for i := 0; i < value.Len(); i++ {
-			if err := block.writeArray(col, value.Index(i), num, level+1); err != nil {
-				return err
-			}
-		}
+		return col.Write(block.buffers[num].Column, value.Interface())
 	default:
 		if err := col.Write(block.buffers[num].Column, value.Interface()); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (block *Block) writeMap(col column.Column, value Value, num int) error {
+	if value.Kind() != reflect.Map {
+		return fmt.Errorf("not Map(K, V) type [%T]", value.Interface())
+	}
+	if len(block.offsets[num]) == 0 {
+		block.offsets[num] = append(block.offsets[num], []int{value.Len()})
+	} else {
+		offsetsSize := len(block.offsets[num])
+		block.offsets[num][offsetsSize-1] = append(
+			block.offsets[num][offsetsSize-1],
+			block.offsets[num][offsetsSize-1][len(block.offsets[num][offsetsSize-1])-1]+value.Len(),
+		)
+	}
+	if err := col.Write(block.buffers[num].Column, value.Interface()); err != nil {
+		return err
 	}
 	return nil
 }
@@ -149,6 +156,16 @@ func (block *Block) AppendRow(args []driver.Value) error {
 				return fmt.Errorf("unsupported Array(T) type [%T]", value.Interface())
 			}
 			if err := block.writeArray(c, newValue(value), num, 1); err != nil {
+				return err
+			}
+		case *column.Tuple:
+			// todo support tuple type
+		case *column.CkMap:
+			value := reflect.ValueOf(args[num])
+			if value.Kind() != reflect.Map {
+				return fmt.Errorf("unsupported Map(K, V) type [%T]", value.Interface())
+			}
+			if err := block.writeMap(c, newValue(value), num); err != nil {
 				return err
 			}
 		case *column.Nullable:

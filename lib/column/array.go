@@ -41,7 +41,22 @@ func (array *Array) WriteNull(nulls, encoder *binary.Encoder, v interface{}) err
 }
 
 func (array *Array) Write(encoder *binary.Encoder, v interface{}) error {
-	return array.column.Write(encoder, v)
+	value := reflect.ValueOf(v)
+	for i := 0; i < value.Len(); i++ {
+		if err := array.column.Write(encoder, value.Index(i).Interface()); err != nil {
+			return err
+		}
+	}
+	switch c := array.column.(type) {
+	case *Tuple:
+		for _, b := range c.buffers {
+			_, err := encoder.Write(b.columnBuffer.Bytes())
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (array *Array) ReadArray(decoder *binary.Decoder, rows int) (_ []interface{}, err error) {
