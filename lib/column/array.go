@@ -42,18 +42,12 @@ func (array *Array) WriteNull(nulls, encoder *binary.Encoder, v interface{}) err
 
 func (array *Array) Write(encoder *binary.Encoder, v interface{}) error {
 	value := reflect.ValueOf(v)
+	if value.Kind() != reflect.Slice {
+		return array.column.Write(encoder, v)
+	}
 	for i := 0; i < value.Len(); i++ {
 		if err := array.column.Write(encoder, value.Index(i).Interface()); err != nil {
 			return err
-		}
-	}
-	switch c := array.column.(type) {
-	case *Tuple:
-		for _, b := range c.buffers {
-			_, err := encoder.Write(b.columnBuffer.Bytes())
-			if err != nil {
-				return err
-			}
 		}
 	}
 	return nil
@@ -185,6 +179,10 @@ func (array *Array) arrayType(level int) reflect.Type {
 
 func (array *Array) Depth() int {
 	return array.depth
+}
+
+func (array *Array) GetColumn() Column {
+	return array.column
 }
 
 func parseArray(name, chType string, timezone *time.Location) (*Array, error) {

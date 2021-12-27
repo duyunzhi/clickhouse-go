@@ -1,6 +1,7 @@
 package column
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"strings"
@@ -17,6 +18,11 @@ type Column interface {
 	Write(*binary.Encoder, interface{}) error
 	defaultValue() interface{}
 	Depth() int
+}
+
+type Buffer struct {
+	Column       *binary.Encoder
+	ColumnBuffer *bytes.Buffer
 }
 
 func Factory(name, chType string, timezone *time.Location) (Column, error) {

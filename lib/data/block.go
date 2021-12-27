@@ -102,6 +102,46 @@ func (block *Block) Read(serverInfo *ServerInfo, decoder *binary.Decoder) (err e
 }
 
 func (block *Block) writeArray(col column.Column, value Value, num, level int) error {
+	if level > col.Depth() {
+		arrColumn, ok := col.(*column.Array)
+		if ok && strings.Contains(col.CHType(), "Nullable") {
+			return arrColumn.WriteNull(block.buffers[num].Offset, block.buffers[num].Column, value.Interface())
+		}
+		return col.Write(block.buffers[num].Column, value.Interface())
+	}
+	switch {
+	case value.Kind() == reflect.Slice:
+		if len(block.offsets[num]) < level {
+			block.offsets[num] = append(block.offsets[num], []int{value.Len()})
+		} else {
+			block.offsets[num][level-1] = append(
+				block.offsets[num][level-1],
+				block.offsets[num][level-1][len(block.offsets[num][level-1])-1]+value.Len(),
+			)
+		}
+		arrColumn, ok := col.(*column.Array)
+		if ok {
+			_, ok := arrColumn.GetColumn().(*column.Tuple)
+			if ok {
+				return arrColumn.Write(block.buffers[num].Column, value.Interface())
+			}
+		}
+
+		for i := 0; i < value.Len(); i++ {
+			if err := block.writeArray(col, value.Index(i), num, level+1); err != nil {
+				return err
+			}
+		}
+	default:
+		if err := col.Write(block.buffers[num].Column, value.Interface()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+/*
+func (block *Block) writeArray(col column.Column, value Value, num, level int) error {
 	switch {
 	case value.Kind() == reflect.Slice:
 		if len(block.offsets[num]) < level {
@@ -119,7 +159,7 @@ func (block *Block) writeArray(col column.Column, value Value, num, level int) e
 		}
 	}
 	return nil
-}
+}*/
 
 func (block *Block) writeMap(col column.Column, value Value, num int) error {
 	if value.Kind() != reflect.Map {
@@ -148,6 +188,7 @@ func (block *Block) AppendRow(args []driver.Value) error {
 	{
 		block.NumRows++
 	}
+	count := 0
 	for num, c := range block.Columns {
 		switch column := c.(type) {
 		case *column.Array:
@@ -165,9 +206,10 @@ func (block *Block) AppendRow(args []driver.Value) error {
 			if value.Kind() != reflect.Map {
 				return fmt.Errorf("unsupported Map(K, V) type [%T]", value.Interface())
 			}
-			if err := block.writeMap(c, newValue(value), num); err != nil {
+			if err := block.writeMap(c, newValue(value), count); err != nil {
 				return err
 			}
+			count++
 		case *column.Nullable:
 			if err := column.WriteNull(block.buffers[num].Offset, block.buffers[num].Column, args[num]); err != nil {
 				return err
@@ -231,9 +273,21 @@ func (block *Block) Write(serverInfo *ServerInfo, encoder *binary.Encoder) error
 			block.offsets[i] = offset{}
 		}
 	}()
-	for i, column := range block.Columns {
-		encoder.String(column.Name())
-		encoder.String(column.CHType())
+	for i, c := range block.Columns {
+		encoder.String(c.Name())
+		encoder.String(c.CHType())
+		switch cc := c.(type) {
+		case *column.CkMap:
+			block.buffers[i].columnBuffer.Write(append(append(block.buffers[i].columnBuffer.Bytes(), cc.Buffers[0].ColumnBuffer.Bytes()...), cc.Buffers[1].ColumnBuffer.Bytes()...))
+		case *column.Array:
+			switch tu := cc.GetColumn().(type) {
+			case *column.Tuple:
+				for _, buf := range tu.GetBuffers() {
+					block.buffers[i].columnBuffer.Write(buf.ColumnBuffer.Bytes())
+				}
+				fmt.Printf("ss%s", tu)
+			}
+		}
 		if len(block.buffers) == len(block.Columns) {
 			for _, offsets := range block.offsets[i] {
 				for _, offset := range offsets {
@@ -242,6 +296,7 @@ func (block *Block) Write(serverInfo *ServerInfo, encoder *binary.Encoder) error
 					}
 				}
 			}
+			fmt.Printf("block buffer: %d \n", block.buffers[i].columnBuffer)
 			if _, err := block.buffers[i].WriteTo(encoder); err != nil {
 				return err
 			}

@@ -13,12 +13,7 @@ import (
 type Tuple struct {
 	base
 	columns []Column
-	buffers []*buffer
-}
-
-type buffer struct {
-	Column       *binary.Encoder
-	columnBuffer *bytes.Buffer
+	buffers []*Buffer
 }
 
 func (tuple *Tuple) Read(decoder *binary.Decoder, isNull bool) (interface{}, error) {
@@ -79,37 +74,30 @@ func (tuple *Tuple) ReadTuple(decoder *binary.Decoder, rows int) ([]interface{},
 
 func (tuple *Tuple) Write(encoder *binary.Encoder, v interface{}) (err error) {
 	tuple.reserve()
-	switch v := v.(type) {
-	case []string:
-		for i, column := range tuple.columns {
-			err := column.Write(tuple.buffers[i].Column, v[i])
-			if err != nil {
-				return err
-			}
+	value := reflect.ValueOf(v)
+	for i, column := range tuple.columns {
+		err := column.Write(tuple.buffers[i].Column, value.Index(i).Interface())
+		if err != nil {
+			return err
 		}
-		return nil
 	}
-
-	return &ErrUnexpectedType{
-		T:      v,
-		Column: tuple,
-	}
+	return nil
 }
 
-func (tuple *Tuple) GetBuffers() (buffers []*buffer) {
+func (tuple *Tuple) GetBuffers() (buffers []*Buffer) {
 	return tuple.buffers
 }
 
 func (tuple *Tuple) reserve() {
 	if len(tuple.buffers) == 0 {
-		tuple.buffers = make([]*buffer, len(tuple.columns))
+		tuple.buffers = make([]*Buffer, len(tuple.columns))
 		for i := 0; i < len(tuple.columns); i++ {
 			var (
 				columnBuffer = new(bytes.Buffer)
 			)
-			tuple.buffers[i] = &buffer{
+			tuple.buffers[i] = &Buffer{
 				Column:       binary.NewEncoder(columnBuffer),
-				columnBuffer: columnBuffer,
+				ColumnBuffer: columnBuffer,
 			}
 		}
 	}

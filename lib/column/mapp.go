@@ -1,17 +1,17 @@
 package column
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/ClickHouse/clickhouse-go/lib/binary"
 	"reflect"
-	"strconv"
-	"strings"
 	"time"
 )
 
 type CkMap struct {
 	base
 	columns []Column
+	Buffers []*Buffer
 }
 
 func (ckMap *CkMap) Read(decoder *binary.Decoder, isNull bool) (interface{}, error) {
@@ -23,26 +23,44 @@ func (ckMap *CkMap) ReadMap(decoder *binary.Decoder, rows int) ([]interface{}, e
 }
 
 func (ckMap *CkMap) Write(encoder *binary.Encoder, v interface{}) (err error) {
-	m, ok := v.(map[string]string)
+	ckMap.reserve()
+	m, ok := v.(map[interface{}]interface{})
 	if ok {
 		i := 0
-		values := make([]string, len(m))
+		values := make([]interface{}, len(m))
 		for key, value := range m {
-			err := encoder.String(key)
+			err := ckMap.columns[0].Write(ckMap.Buffers[0].Column, key)
 			if err != nil {
-				println(err)
+				return err
 			}
 			values[i] = value
 			i++
 		}
 		for _, value := range values {
-			err := encoder.String(value)
+			err := ckMap.columns[1].Write(ckMap.Buffers[1].Column, value)
 			if err != nil {
-				println(err)
+				return err
+			}
+		}
+	} else {
+		return fmt.Errorf("not support Map type[%T], require type[map[interface{}]interface{}]", v)
+	}
+	return nil
+}
+
+func (ckMap *CkMap) reserve() {
+	if len(ckMap.Buffers) == 0 {
+		ckMap.Buffers = make([]*Buffer, len(ckMap.columns))
+		for i := 0; i < len(ckMap.columns); i++ {
+			var (
+				columnBuffer = new(bytes.Buffer)
+			)
+			ckMap.Buffers[i] = &Buffer{
+				Column:       binary.NewEncoder(columnBuffer),
+				ColumnBuffer: columnBuffer,
 			}
 		}
 	}
-	return nil
 }
 
 func parseMap(name, chType string, timezone *time.Location) (Column, error) {
@@ -63,14 +81,15 @@ func parseMap(name, chType string, timezone *time.Location) (Column, error) {
 	}
 
 	var columns = make([]Column, 0, len(types))
+	if len(types) != 2 {
+		return nil, fmt.Errorf("must (K, V)")
+	}
 	for i, chType := range types {
-		fieldName := name + "." + strconv.Itoa(i+1)
-		if !tupleType(chType) {
-			types := strings.Fields(chType)
-			if len(types) == 2 {
-				fieldName = name + "." + types[0]
-				chType = types[1]
-			}
+		fieldName := name
+		if i == 0 {
+			fieldName = name + ".k"
+		} else if i == 1 {
+			fieldName = name + ".v"
 		}
 		column, err := Factory(fieldName, chType, timezone)
 		if err != nil {
