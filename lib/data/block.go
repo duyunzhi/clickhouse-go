@@ -167,7 +167,6 @@ func (block *Block) AppendRow(args []driver.Value) error {
 	{
 		block.NumRows++
 	}
-	count := 0
 	for num, c := range block.Columns {
 		switch column := c.(type) {
 		case *column.Array:
@@ -185,10 +184,9 @@ func (block *Block) AppendRow(args []driver.Value) error {
 			if value.Kind() != reflect.Map {
 				return fmt.Errorf("unsupported Map(K, V) type [%T]", value.Interface())
 			}
-			if err := block.writeMap(c, newValue(value), count); err != nil {
+			if err := block.writeMap(c, newValue(value), num); err != nil {
 				return err
 			}
-			count++
 		case *column.Nullable:
 			if err := column.WriteNull(block.buffers[num].Offset, block.buffers[num].Column, args[num]); err != nil {
 				return err
