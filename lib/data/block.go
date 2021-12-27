@@ -140,27 +140,6 @@ func (block *Block) writeArray(col column.Column, value Value, num, level int) e
 	return nil
 }
 
-/*
-func (block *Block) writeArray(col column.Column, value Value, num, level int) error {
-	switch {
-	case value.Kind() == reflect.Slice:
-		if len(block.offsets[num]) < level {
-			block.offsets[num] = append(block.offsets[num], []int{value.Len()})
-		} else {
-			block.offsets[num][level-1] = append(
-				block.offsets[num][level-1],
-				block.offsets[num][level-1][len(block.offsets[num][level-1])-1]+value.Len(),
-			)
-		}
-		return col.Write(block.buffers[num].Column, value.Interface())
-	default:
-		if err := col.Write(block.buffers[num].Column, value.Interface()); err != nil {
-			return err
-		}
-	}
-	return nil
-}*/
-
 func (block *Block) writeMap(col column.Column, value Value, num int) error {
 	if value.Kind() != reflect.Map {
 		return fmt.Errorf("not Map(K, V) type [%T]", value.Interface())
@@ -296,7 +275,6 @@ func (block *Block) Write(serverInfo *ServerInfo, encoder *binary.Encoder) error
 					}
 				}
 			}
-			fmt.Printf("block buffer: %d \n", block.buffers[i].columnBuffer)
 			if _, err := block.buffers[i].WriteTo(encoder); err != nil {
 				return err
 			}
