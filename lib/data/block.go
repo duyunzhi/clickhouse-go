@@ -264,7 +264,6 @@ func (block *Block) Write(serverInfo *ServerInfo, encoder *binary.Encoder) error
 				for _, buf := range tu.GetBuffers() {
 					block.buffers[i].columnBuffer.Write(buf.ColumnBuffer.Bytes())
 				}
-				fmt.Printf("ss%s", tu)
 			}
 		}
 		if len(block.buffers) == len(block.Columns) {
