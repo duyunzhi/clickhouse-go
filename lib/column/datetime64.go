@@ -1,6 +1,7 @@
 package column
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -37,6 +38,7 @@ func (dt *DateTime64) Read(decoder *binary.Decoder, isNull bool) (interface{}, e
 }
 
 func (dt *DateTime64) Write(encoder *binary.Encoder, v interface{}) error {
+	var nanosecondLen = 19
 	var timestamp int64
 	switch value := v.(type) {
 	case time.Time:
@@ -72,18 +74,27 @@ func (dt *DateTime64) Write(encoder *binary.Encoder, v interface{}) error {
 		}
 	}
 
+	tsSize := len(strconv.FormatInt(timestamp, 10))
+	if tsSize != nanosecondLen {
+		if tsSize > nanosecondLen {
+			return fmt.Errorf("illegal time: %v", v)
+		}
+		differ := nanosecondLen - tsSize
+		timestamp = timestamp * int64(math.Pow10(differ))
+	}
+
 	precision, err := dt.getPrecision()
 	if err != nil {
 		return err
 	}
+	pow := int64(math.Pow10(9 - precision))
 
-	timestamp = timestamp / int64(math.Pow10(9-precision))
-
+	timestamp = timestamp / pow
 	return encoder.Int64(timestamp)
 }
 
 func (dt *DateTime64) parse(value string) (int64, error) {
-	tv, err := time.Parse("2006-01-02 15:04:05.999", value)
+	tv, err := time.ParseInLocation("2006-01-02 15:04:05.999", value, time.Local)
 	if err != nil {
 		return 0, err
 	}
@@ -97,4 +108,8 @@ func (dt *DateTime64) getPrecision() (int, error) {
 		return 0, err
 	}
 	return precision, nil
+}
+
+func (dt *DateTime64) getLen(precision int) int {
+	return 11 + precision
 }
