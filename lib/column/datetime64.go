@@ -109,7 +109,3 @@ func (dt *DateTime64) getPrecision() (int, error) {
 	}
 	return precision, nil
 }
-
-func (dt *DateTime64) getLen(precision int) int {
-	return 11 + precision
-}
