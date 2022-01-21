@@ -3,7 +3,7 @@ package clickhouse
 import "github.com/ClickHouse/clickhouse-go/lib/data"
 
 func (ch *clickhouse) sendExternalTables(externalTables []ExternalTable) error {
-	ch.logf("[send external tables] count %d", len(externalTables))
+	//ch.logf("[send external tables] count %d", len(externalTables))
 	if externalTables == nil || len(externalTables) == 0 {
 		return nil
 	}
@@ -13,7 +13,7 @@ func (ch *clickhouse) sendExternalTables(externalTables []ExternalTable) error {
 		if _, ok := sentTables[externalTable.Name]; ok {
 			continue
 		}
-		ch.logf("[send external table] name %s", externalTable.Name)
+		//ch.logf("[send external table] name %s", externalTable.Name)
 		sentTables[externalTable.Name] = true
 		block.Columns = externalTable.Columns
 		block.NumColumns = uint64(len(externalTable.Columns))

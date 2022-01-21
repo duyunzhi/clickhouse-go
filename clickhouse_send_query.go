@@ -7,7 +7,7 @@ import (
 )
 
 func (ch *clickhouse) sendQuery(ctx context.Context, query string, externalTables []ExternalTable) error {
-	ch.logf("[send query] %s", query)
+	//ch.logf("[send query] %s", query)
 	if err := ch.encoder.Uvarint(protocol.ClientQuery); err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func (ch *clickhouse) sendQuery(ctx context.Context, query string, externalTable
 
 	// the settings are written as list of contiguous name-value pairs, finished with empty name
 	if !ch.settings.IsEmpty() {
-		ch.logf("[query settings] %s", ch.settings.settingsStr)
+		//ch.logf("[query settings] %s", ch.settings.settingsStr)
 		if err := ch.settings.Serialize(ch.encoder); err != nil {
 			return err
 		}

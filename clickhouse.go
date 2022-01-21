@@ -69,7 +69,7 @@ func (ch *clickhouse) PrepareContext(ctx context.Context, query string) (driver.
 }
 
 func (ch *clickhouse) prepareContext(ctx context.Context, query string) (driver.Stmt, error) {
-	ch.logf("[prepare] %s", query)
+	//ch.logf("[prepare] %s", query)
 	switch {
 	case ch.conn.closed:
 		return nil, driver.ErrBadConn
@@ -118,7 +118,7 @@ type txOptions struct {
 }
 
 func (ch *clickhouse) beginTx(ctx context.Context, opts txOptions) (*clickhouse, error) {
-	ch.logf("[begin] tx=%t, data=%t", ch.inTransaction, ch.block != nil)
+	//ch.logf("[begin] tx=%t, data=%t", ch.inTransaction, ch.block != nil)
 	switch {
 	case ch.inTransaction:
 		return nil, sql.ErrTxDone
@@ -131,7 +131,7 @@ func (ch *clickhouse) beginTx(ctx context.Context, opts txOptions) (*clickhouse,
 	// but beginTx doesn't perform any other network interaction.
 	if ch.checkConnLiveness {
 		if err := ch.conn.connCheck(); err != nil {
-			ch.logf("[begin] closing bad idle connection: %w", err)
+			//ch.logf("[begin] closing bad idle connection: %w", err)
 			ch.Close()
 			return ch, driver.ErrBadConn
 		}
@@ -146,7 +146,7 @@ func (ch *clickhouse) beginTx(ctx context.Context, opts txOptions) (*clickhouse,
 }
 
 func (ch *clickhouse) Commit() error {
-	ch.logf("[commit] tx=%t, data=%t", ch.inTransaction, ch.block != nil)
+	//ch.logf("[commit] tx=%t, data=%t", ch.inTransaction, ch.block != nil)
 	defer func() {
 		if ch.block != nil {
 			ch.block.Reset()
@@ -177,7 +177,7 @@ func (ch *clickhouse) Commit() error {
 }
 
 func (ch *clickhouse) Rollback() error {
-	ch.logf("[rollback] tx=%t, data=%t", ch.inTransaction, ch.block != nil)
+	//ch.logf("[rollback] tx=%t, data=%t", ch.inTransaction, ch.block != nil)
 	if !ch.inTransaction {
 		return sql.ErrTxDone
 	}
@@ -261,35 +261,35 @@ func (ch *clickhouse) process() error {
 	for {
 		switch packet {
 		case protocol.ServerPong:
-			ch.logf("[process] <- pong")
+			//ch.logf("[process] <- pong")
 			return nil
 		case protocol.ServerException:
-			ch.logf("[process] <- exception")
+			//ch.logf("[process] <- exception")
 			return ch.exception()
 		case protocol.ServerProgress:
-			progress, err := ch.progress()
+			_, err := ch.progress()
 			if err != nil {
 				return err
 			}
-			ch.logf("[process] <- progress: rows=%d, bytes=%d, total rows=%d",
-				progress.rows,
-				progress.bytes,
-				progress.totalRows,
-			)
+			//ch.logf("[process] <- progress: rows=%d, bytes=%d, total rows=%d",
+			//	progress.rows,
+			//	progress.bytes,
+			//	progress.totalRows,
+			//)
 		case protocol.ServerProfileInfo:
-			profileInfo, err := ch.profileInfo()
+			_, err := ch.profileInfo()
 			if err != nil {
 				return err
 			}
-			ch.logf("[process] <- profiling: rows=%d, bytes=%d, blocks=%d", profileInfo.rows, profileInfo.bytes, profileInfo.blocks)
+			//ch.logf("[process] <- profiling: rows=%d, bytes=%d, blocks=%d", profileInfo.rows, profileInfo.bytes, profileInfo.blocks)
 		case protocol.ServerData:
-			block, err := ch.readBlock()
+			_, err := ch.readBlock()
 			if err != nil {
 				return err
 			}
-			ch.logf("[process] <- data: packet=%d, columns=%d, rows=%d", packet, block.NumColumns, block.NumRows)
+			//ch.logf("[process] <- data: packet=%d, columns=%d, rows=%d", packet, block.NumColumns, block.NumRows)
 		case protocol.ServerEndOfStream:
-			ch.logf("[process] <- end of stream")
+			//ch.logf("[process] <- end of stream")
 			return nil
 		default:
 			ch.conn.Close()
@@ -302,7 +302,7 @@ func (ch *clickhouse) process() error {
 }
 
 func (ch *clickhouse) cancel() error {
-	ch.logf("[cancel request]")
+	//ch.logf("[cancel request]")
 	// even if we fail to write the cancel, we still need to close
 	err := ch.encoder.Uvarint(protocol.ClientCancel)
 	if err == nil {
@@ -323,9 +323,9 @@ func (ch *clickhouse) watchCancel(ctx context.Context) func() {
 			case <-done:
 				ch.cancel()
 				finished <- struct{}{}
-				ch.logf("[cancel] <- done")
+				//ch.logf("[cancel] <- done")
 			case <-finished:
-				ch.logf("[cancel] <- finished")
+				//ch.logf("[cancel] <- finished")
 			}
 		}()
 		return func() {

@@ -57,7 +57,7 @@ func (stmt *stmt) execContext(ctx context.Context, args []driver.Value) (driver.
 			return nil, err
 		}
 		if (stmt.counter % stmt.ch.blockSize) == 0 {
-			stmt.ch.logf("[exec] flush block")
+			//stmt.ch.logf("[exec] flush block")
 			if err := stmt.ch.writeBlock(stmt.ch.block, ""); err != nil {
 				return nil, err
 			}
@@ -109,7 +109,7 @@ func (stmt *stmt) queryContext(ctx context.Context, args []driver.NamedValue) (d
 }
 
 func (stmt *stmt) Close() error {
-	stmt.ch.logf("[stmt] close")
+	//stmt.ch.logf("[stmt] close")
 	return nil
 }
 

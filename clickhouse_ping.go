@@ -15,7 +15,7 @@ func (ch *clickhouse) ping(ctx context.Context) error {
 	if ch.conn.closed {
 		return driver.ErrBadConn
 	}
-	ch.logf("-> ping")
+	//ch.logf("-> ping")
 	finish := ch.watchCancel(ctx)
 	defer finish()
 	if err := ch.encoder.Uvarint(protocol.ClientPing); err != nil {

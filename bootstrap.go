@@ -181,11 +181,11 @@ func open(dsn string) (*clickhouse, error) {
 	if debug, err := strconv.ParseBool(url.Query().Get("debug")); err == nil && debug {
 		ch.logf = logger.Printf
 	}
-	ch.logf("host(s)=%s, database=%s, username=%s",
-		strings.Join(hosts, ", "),
-		database,
-		username,
-	)
+	//ch.logf("host(s)=%s, database=%s, username=%s",
+	//	strings.Join(hosts, ", "),
+	//	database,
+	//	username,
+	//)
 	options := connOptions{
 		secure:       secure,
 		tlsConfig:    tlsConfig,
@@ -215,7 +215,7 @@ func open(dsn string) (*clickhouse, error) {
 }
 
 func (ch *clickhouse) hello(database, username, password string) error {
-	ch.logf("[hello] -> %s", ch.ClientInfo)
+	//ch.logf("[hello] -> %s", ch.ClientInfo)
 	{
 		ch.encoder.Uvarint(protocol.ClientHello)
 		if err := ch.ClientInfo.Write(ch.encoder); err != nil {
@@ -244,12 +244,12 @@ func (ch *clickhouse) hello(database, username, password string) error {
 				return err
 			}
 		case protocol.ServerEndOfStream:
-			ch.logf("[bootstrap] <- end of stream")
+			//ch.logf("[bootstrap] <- end of stream")
 			return nil
 		default:
 			return fmt.Errorf("[hello] unexpected packet [%d] from server", packet)
 		}
 	}
-	ch.logf("[hello] <- %s", ch.ServerInfo)
+	//ch.logf("[hello] <- %s", ch.ServerInfo)
 	return nil
 }
