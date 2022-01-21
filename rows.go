@@ -3,14 +3,12 @@ package clickhouse
 import (
 	"database/sql/driver"
 	"fmt"
-	"io"
-	"reflect"
-	"sync"
-	"time"
-
 	"github.com/ClickHouse/clickhouse-go/lib/column"
 	"github.com/ClickHouse/clickhouse-go/lib/data"
 	"github.com/ClickHouse/clickhouse-go/lib/protocol"
+	"io"
+	"reflect"
+	"sync"
 )
 
 type rows struct {
@@ -82,10 +80,8 @@ func (rows *rows) NextResultSet() error {
 func (rows *rows) receiveData() error {
 	defer close(rows.stream)
 	var (
-		err         error
-		packet      uint64
-		progress    *progress
-		profileInfo *profileInfo
+		err    error
+		packet uint64
 	)
 	for {
 		if packet, err = rows.ch.decoder.Uvarint(); err != nil {
@@ -93,31 +89,31 @@ func (rows *rows) receiveData() error {
 		}
 		switch packet {
 		case protocol.ServerException:
-			rows.ch.logf("[rows] <- exception")
+			//rows.ch.logf("[rows] <- exception")
 			return rows.setError(rows.ch.exception())
 		case protocol.ServerProgress:
-			if progress, err = rows.ch.progress(); err != nil {
+			if _, err = rows.ch.progress(); err != nil {
 				return rows.setError(err)
 			}
-			rows.ch.logf("[rows] <- progress: rows=%d, bytes=%d, total rows=%d",
-				progress.rows,
-				progress.bytes,
-				progress.totalRows,
-			)
+			//rows.ch.logf("[rows] <- progress: rows=%d, bytes=%d, total rows=%d",
+			//	progress.rows,
+			//	progress.bytes,
+			//	progress.totalRows,
+			//)
 		case protocol.ServerProfileInfo:
-			if profileInfo, err = rows.ch.profileInfo(); err != nil {
+			if _, err = rows.ch.profileInfo(); err != nil {
 				return rows.setError(err)
 			}
-			rows.ch.logf("[rows] <- profiling: rows=%d, bytes=%d, blocks=%d", profileInfo.rows, profileInfo.bytes, profileInfo.blocks)
+			//rows.ch.logf("[rows] <- profiling: rows=%d, bytes=%d, blocks=%d", profileInfo.rows, profileInfo.bytes, profileInfo.blocks)
 		case protocol.ServerData, protocol.ServerTotals, protocol.ServerExtremes:
 			var (
 				block *data.Block
-				begin = time.Now()
+				//begin = time.Now()
 			)
 			if block, err = rows.ch.readBlock(); err != nil {
 				return rows.setError(err)
 			}
-			rows.ch.logf("[rows] <- data: packet=%d, columns=%d, rows=%d, elapsed=%s", packet, block.NumColumns, block.NumRows, time.Since(begin))
+			//rows.ch.logf("[rows] <- data: packet=%d, columns=%d, rows=%d, elapsed=%s", packet, block.NumColumns, block.NumRows, time.Since(begin))
 			if block.NumRows == 0 {
 				continue
 			}
@@ -130,18 +126,18 @@ func (rows *rows) receiveData() error {
 				rows.extremes = block
 			}
 		case protocol.ServerEndOfStream:
-			rows.ch.logf("[rows] <- end of stream")
+			//rows.ch.logf("[rows] <- end of stream")
 			return nil
 		default:
 			rows.ch.conn.Close()
-			rows.ch.logf("[rows] unexpected packet [%d]", packet)
+			//rows.ch.logf("[rows] unexpected packet [%d]", packet)
 			return rows.setError(fmt.Errorf("[rows] unexpected packet [%d] from server", packet))
 		}
 	}
 }
 
 func (rows *rows) Close() error {
-	rows.ch.logf("[rows] close")
+	//rows.ch.logf("[rows] close")
 	rows.columns = nil
 	for range rows.stream {
 	}
